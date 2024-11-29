@@ -1,0 +1,99 @@
+from bs4 import BeautifulSoup
+import requests
+import spotipy
+from spotipy.oauth2 import SpotifyOAuth
+import threading
+from dotenv import load_dotenv
+import os
+
+
+
+load_dotenv()
+SPOTIFY_ID = os.getenv("SPOTIFY_ID")
+SPOTIFY_SECRET = os.getenv("SPOTIFY_SECRET")
+REDIRECT_USER_URI = os.getenv("REDIRECT_USER_URI")
+
+sp = spotipy.Spotify(auth_manager=SpotifyOAuth(
+        client_id=SPOTIFY_ID,
+        client_secret=SPOTIFY_SECRET,
+        redirect_uri=REDIRECT_USER_URI,
+        open_browser=True,
+        scope="playlist-modify-private",
+        show_dialog=True,
+        cache_path="token.txt",
+    ))
+
+user_id = sp.current_user()["id"]
+year = input("Which year do you want to travel? The format is: YYYY-MM-DD\n")
+
+def top_songs_(year_):
+    #Asks a date from user and returns top 100 songs from this day.
+    from datetime import datetime
+
+    song_list = []
+    header = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:131.0) Gecko/20100101 Firefox/131.0"}
+
+    try:
+        date_object = datetime.strptime(str(year_), "%Y-%m-%d")
+    except ValueError:
+        try:
+            date_object = datetime.strptime(str(year_), "%d/%m/%Y")
+        except ValueError:
+            print("Invalid date format. Please enter in 'YYYY-MM-DD' or 'MM/DD/YYYY' format.")
+            exit()
+
+    # Format the date as YYYYMMDD
+    formatted_date = date_object.strftime("%Y-%m-%d")
+    url = "https://www.billboard.com/charts/hot-100/" + formatted_date
+
+    response = requests.put(url=url, headers=header)
+
+    print(response.raise_for_status)
+    soup = BeautifulSoup(response.text, "html.parser")
+    top_songs = soup.select("li ul li h3")
+
+    for song in top_songs:
+        song_list.append(song.getText().strip())
+
+    return song_list
+
+
+def fetch_uri(track_name, result_list, lock):
+    try:
+        # Search for the track on Spotify
+        search_result = sp.search(q=track_name, type='track', limit=1)
+        if search_result['tracks']['items']:
+            uri = search_result['tracks']['items'][0]['uri']
+            # Safely append to the shared result list
+            with lock:
+                result_list.append(uri)
+        else:
+            print(f"No results found for: {track_name}")
+    except Exception as e:
+        print(f"Error fetching URI for {track_name}: {e}")
+
+
+song_names = top_songs_(year_= year)
+
+playlist_ = sp.user_playlist_create(
+    user=user_id, 
+    name=f"{year} Billboard top 100", 
+    public=False, collaborative=False, 
+    description='Python URI API'
+    )
+
+spotify_uris = []
+lock = threading.Lock()
+threads = []
+
+for song in song_names:
+    thread = threading.Thread(target=fetch_uri, args=(song, spotify_uris, lock))
+    threads.append(thread)
+    thread.start()
+
+for thread in threads:
+    thread.join()
+
+
+sp.playlist_add_items(playlist_id=playlist_["id"], items=spotify_uris)
+print("Your playlist is ready for use. Thank you for your patience!")
