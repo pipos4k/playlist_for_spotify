@@ -6,8 +6,6 @@ import threading
 from dotenv import load_dotenv
 import os
 
-
-
 load_dotenv()
 SPOTIFY_ID = os.getenv("SPOTIFY_ID")
 SPOTIFY_SECRET = os.getenv("SPOTIFY_SECRET")
@@ -71,7 +69,7 @@ def fetch_uri(track_name, result_list, lock):
             print(f"No results found for: {track_name}")
     except Exception as e:
         print(f"Error fetching URI for {track_name}: {e}")
-
+        
 
 song_names = top_songs_(year_= year)
 
