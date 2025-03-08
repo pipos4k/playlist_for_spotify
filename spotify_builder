@@ -8,6 +8,7 @@ import threading
 from dotenv import load_dotenv
 import os
 
+# You must add your spotify_id and secret
 load_dotenv()
 SPOTIFY_ID = os.getenv("SPOTIFY_ID")
 SPOTIFY_SECRET = os.getenv("SPOTIFY_SECRET")
@@ -85,6 +86,8 @@ playlist_ = sp.user_playlist_create(
 spotify_uris = []
 lock = threading.Lock()
 threads = []
+
+# Threads for optimize the program
 
 for song in song_names:
     thread = threading.Thread(target=fetch_uri, args=(song, spotify_uris, lock))
