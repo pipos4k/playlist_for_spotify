@@ -1,3 +1,5 @@
+# Takes a list from Billboard site and creates a playlist with TOP 100 songs from the date you give.
+
 from bs4 import BeautifulSoup
 import requests
 import spotipy
